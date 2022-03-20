@@ -1,0 +1,23 @@
+{
+    "name": "Heavy",
+    "description": "Shoot",
+    "version": "0.1",
+    "manifest_version": 3,
+
+    "permissions": 
+    [
+        "storage"
+    ],
+
+    "icons":
+    {
+        "16": "/thumbnail.png",
+        "48": "/thumbnail.png",
+        "128": "/thumbnail.png"
+    },
+    
+    "action": 
+    {
+        "default_popup": "index.html"
+    }
+  }
