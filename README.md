@@ -13,7 +13,7 @@ Constrols:
 
 Source Code: https://github.com/AssMonke/Heavy
 
-Update v0.4:
+Update v0.4.1:
      Upgrade system added - press E at the store in the middle of the arena then X to exit
           pyro - lasts for 10 seconds at an increasing cost; buffs the player
      health system added - the player now can get hit 3 times before the game ends
