@@ -1,7 +1,7 @@
 {
-    "name": "Heavy",
-    "description": "Shoot",
-    "version": "0.1",
+    "name": "Heavy Simulator",
+    "description": "An Epic Shooter To Test Ones Vigor",
+    "version": "0.4",
     "manifest_version": 3,
 
     "permissions": 
@@ -11,9 +11,9 @@
 
     "icons":
     {
-        "16": "/thumbnail.png",
-        "48": "/thumbnail.png",
-        "128": "/thumbnail.png"
+        "16": "/thumbnail.PNG",
+        "48": "/thumbnail.PNG",
+        "128": "/thumbnail.PNG"
     },
     
     "action": 

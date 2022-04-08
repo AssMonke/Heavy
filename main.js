@@ -3,8 +3,13 @@ const ctx = canvas.getContext("2d");
 
 const minigun_audio = document.getElementById("minigun");
 const stopMinigun_audio = document.getElementById("stopMinigun");
+const flamethrower_audio = document.getElementById("flamethrower");
+const stopFlamethrower_audio = document.getElementById("stopFlamethrower");
+
 const scattergun_audio = document.getElementById("scattergun");
 const scream_audio = document.getElementById("scream");
+const lifeLost_audio = document.getElementById("lifeLost");
+const buy_audio = document.getElementById("buy");
 
 canvas.width = "600"
 canvas.height = "600"
@@ -12,21 +17,17 @@ canvas.height = "600"
 const renderRate = 20;
 const bloodPool = document.getElementById("bloodPool");
 const playerSize = 70;
-const fireRate = 150;
 const moveSpeed = 4;
-const shootingSpeed = 2;
 const bulletSpeed = 10;
 const enemeyMoveSpeed = 0.01;
 const enemeyFireRate = 70;
 const enemyBulletSpeed = 10;
 const maxEnemies = 3;
 const maxBloodEffects = 50;
-const enemyRefs = 
-[
-    {ref: document.getElementById("scout"), scale: 80}
-];
+const enemyRef = document.getElementById("scout");
 
-var player = new Image(document.getElementById("heavy"), 300, 300, playerSize, playerSize, 0);
+var player = new Image(document.getElementById("heavy"), 300, 400, playerSize, playerSize, 0);
+const upgradeStand = new Image(document.getElementById("upgradeStand"), 300, 300, 50, 50, 0);
 
 var input = [];
 var handleInput = (event) => { input[event.keyCode] = event.type == 'keydown'; }
@@ -39,15 +40,28 @@ document.addEventListener('mousemove', (event) =>
     mousePos.y = event.y;
 });
 
+var currentShootSounds = [minigun_audio, stopMinigun_audio];
+
 var playerBullets = [];
+var currentBullet = null;
 var enemyBullets = [];
 var enemies = [];
 var blood = [];
 var canShoot = true;
 var timer = 0;
 var score = 0;
+var money = 0;
 var currentSpeed = moveSpeed;
 var isPlayingMinigun = false;
+var isUpgrading = false;
+var isGameOver = false;
+var bulletLifetime = 1000;
+var fireRate = 150;
+var bulletCollider = 20;
+var shootingSpeed = 2;
+var currentUpgradeTimer = 0;
+var lives = 3;
+var hearts = [ new Image(document.getElementById("life"), 40, 40, 40, 40, 0), new Image(document.getElementById("life"), 80, 40, 40, 40, 0), new Image(document.getElementById("life"), 120, 40, 40, 40, 0) ]
 
 chrome.storage.sync.get(['highscore'], function(result) 
 {
@@ -57,25 +71,164 @@ chrome.storage.sync.get(['highscore'], function(result)
     }
 });
 
+var buyButton = {
+    x:200,
+    y:500,
+    width:200,
+    height:50
+};
+
+var unlockableCharacters = 
+[
+    {
+        name: "Pyro",
+
+        cost: 999,
+
+        duration: 500, // 1000 (miliseconds) / render rate
+
+        hasBought: false,
+
+        image: new Image(document.getElementById("pyro"), 0, 0, playerSize, playerSize, 0),
+
+        preview: new Image(document.getElementById("pyroPreview"), 160, 170, 350, 350, 0),
+
+        bullet: new Image(document.getElementById("flame"), 0, 0, 50, 50, 0),
+
+        bLifetime: 450,
+
+        bFireRate: 50,
+
+        bCollider: 50,
+
+        bSpeed: 3
+    }
+]
+
+//Function to get the mouse position
+function getMousePos(canvas, event) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+}
+//Function to check whether a point is inside a rectangle
+function isInside(pos, rect){ return pos.x > rect.x && pos.x < rect.x+rect.width && pos.y < rect.y+rect.height && pos.y > rect.y }
+
+canvas.addEventListener('click', function(evt) {
+    var mousePos = getMousePos(canvas, evt);
+
+    // GUI
+    if (isInside(mousePos, retryButton) && isGameOver) {
+        window.location.reload(true);
+    }
+    
+    if (isInside(mousePos, buyButton) && isUpgrading) {
+        ctx.fillStyle = 'red';
+        ctx.textAlign = "center";
+        ctx.font = "40px Arial";
+
+        if(unlockableCharacters[0].hasBought){ ctx.fillText("Currently In Progress!", 300, 400); return;}
+        if(money < unlockableCharacters[0].cost){ ctx.fillText("Not Enough Money!", 300, 585); return; }
+        
+        unlockableCharacters[0].hasBought = true;
+
+        player.ref = document.getElementById("pyro");
+        currentShootSounds[0] = flamethrower_audio;
+        currentShootSounds[1] = stopFlamethrower_audio;
+        currentBullet = unlockableCharacters[0].bullet;
+        fireRate = unlockableCharacters[0].bFireRate;
+        bulletCollider = unlockableCharacters[0].bCollider;
+        bulletLifetime = unlockableCharacters[0].bLifetime;
+        shootingSpeed = unlockableCharacters[0].bSpeed;
+        currentUpgradeTimer = unlockableCharacters[0].duration;
+
+        buy_audio.play();
+        money -= unlockableCharacters[0].cost;
+        unlockableCharacters[0].cost *= 2;
+        ctx.fillStyle = 'red';
+        ctx.font = "40px Arial";
+        isUpgrading = false;
+    }
+}, false);
+
 function Render()
 {
+    if(CheckDistance(upgradeStand, player, 100) && input[69]){
+        isUpgrading = true;
+    }
+
+    if(isUpgrading)
+    { 
+        currentShootSounds[0].pause();
+
+        if(input[88]){ isUpgrading = false; return; }
+
+        let l = unlockableCharacters.length;
+
+        for(let i = 0; i < l; i++)
+        {
+            ctx.fillStyle = 'red';
+            ctx.font = "40px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("$" + unlockableCharacters[i].cost, 300, 100);
+            ctx.fillRect(buyButton.x, buyButton.y, buyButton.width, buyButton.height);
+            ctx.fillStyle = 'black';
+            ctx.fillText("Buy " + unlockableCharacters[i].name, 300, 540);
+            unlockableCharacters[i].preview.update();
+        }
+        
+        return; 
+    }
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height); //clear
     timer++;
+
+    if(currentUpgradeTimer != 0){
+        currentUpgradeTimer--;
+
+        ctx.fillStyle = 'red';
+        ctx.font = "40px Arial";
+        ctx.fillText((currentUpgradeTimer*renderRate)/1000 + "s", 300, 60);
+
+        if(currentUpgradeTimer == 0){
+            flamethrower_audio.pause();
+            unlockableCharacters[0].hasBought = false;
+            player.ref = document.getElementById("heavy");
+            currentShootSounds[0] = minigun_audio;
+            currentShootSounds[1] = stopMinigun_audio;
+            currentBullet = null;
+            fireRate = 150;
+            bulletCollider = 20;
+            bulletLifetime = 1000;
+            shootingSpeed = 2;
+        }
+    }
 
     ctx.textAlign = "center";
     ctx.fillStyle = 'white';
     ctx.font = "30px Arial";
     ctx.fillText(score, 300, 30);
+    ctx.fillText("$" + money, 500, 30);
+
+    upgradeStand.update();
 
     let l = playerBullets.length;
     for(let i = 0; i < l; i++){ playerBullets[i].update(); }
-    l = enemyBullets.length;
-    for(let i = 0; i < l; i++)
+    for(let i = 0; i < enemyBullets.length; i++)
     { 
         enemyBullets[i].update();
-
-        if(CheckDistance(enemyBullets[i], player, 20)){ EndGame(); }
+        if(CheckDistance(enemyBullets[i], player, 20)){ 
+            lives--;
+            lifeLost_audio.play();
+            hearts.pop();
+            enemyBullets.splice(i, 1);
+            if(lives < 1) { EndGame(); }
+        }
     }
+    l = hearts.length;
+    for(let i = 0; i < l; i++){ hearts[i].update(); }
     l = blood.length;
     for(let i = 0; i < l; i++){ blood[i].update(); }
     if(blood.length > maxBloodEffects){ blood.shift(); }
@@ -91,7 +244,7 @@ function Render()
         if(enemies[i].targetTime < timer){ ShootEnemyBullet(dir, enemies[i]); enemies[i].targetTime = timer+enemeyFireRate}
 
         for(let  g = 0; g < playerBullets.length; g++){ 
-            if(CheckDistance(playerBullets[g], enemies[i], 20)){  
+            if(CheckDistance(playerBullets[g], enemies[i], bulletCollider)){  
                 let e = enemies[i];
                 blood.push(new Image(bloodPool, e.x-25, e.y-25, 150, 150));
 
@@ -101,6 +254,7 @@ function Render()
                 scream_audio.play();
                 enemies.splice(i, 1);
                 score += 20;
+                money += 100;
                 break;
             } 
         }
@@ -115,10 +269,9 @@ function Render()
 
     let dir = { x: mousePos.x - player.x, y: mousePos.y - player.y }
     player.angle = Math.PI - AngleTo(dir);
-    if(input[32])
-    { 
+    if(input[32]){ 
         currentSpeed = shootingSpeed;
-        if(!isPlayingMinigun){ minigun_audio.currentTime = 0; minigun_audio.play(); isPlayingMinigun = true;}
+        if(!isPlayingMinigun){ currentShootSounds[0].currentTime = 0; currentShootSounds[0].play(); isPlayingMinigun = true;}
         
         if(!canShoot){return;}
         ShootBullet(dir); 
@@ -128,8 +281,8 @@ function Render()
         return;
     }
     currentSpeed = moveSpeed;
-    minigun_audio.pause();
-    if(isPlayingMinigun){ stopMinigun_audio.play(); }
+    currentShootSounds[0].pause();
+    if(isPlayingMinigun){ currentShootSounds[1].play(); }
     isPlayingMinigun = false;
 }
 var updateLoop = window.setInterval(Render, renderRate);
@@ -146,10 +299,17 @@ function AngleTo(dir)
 function ShootBullet(direction)
 {
     let bullet = new Rect(player.x, player.y, 5, 5, "yellow");
+    if(currentBullet != null){
+        bullet = currentBullet.copy();
+        bullet.x = player.x;
+        bullet.y = player.y;
+        bullet.angle = player.angle;
+    }
+
     bullet.vX = direction.x * bulletSpeed;
     bullet.vY = direction.y * bulletSpeed;
     playerBullets.push(bullet);
-    setTimeout(() => { playerBullets.shift(); }, 1000);
+    setTimeout(() => { playerBullets.shift(); }, bulletLifetime);
 }
 function ShootEnemyBullet(direction, position)
 {
@@ -164,8 +324,7 @@ function ShootEnemyBullet(direction, position)
 
 function SpawnEnemy()
 {
-    let i = enemyRefs[Math.floor(Math.random() * enemyRefs.length)];
-    let enemey = new Image(i.ref, (-600 * RandomInt(0, 2)) + RandomInt(450, 600), (-600 * RandomInt(0, 2)) + RandomInt(450, 600), i.scale, i.scale, Math.PI);
+    let enemey = new Image(enemyRef, (-600 * RandomInt(0, 2)) + RandomInt(450, 600), (-600 * RandomInt(0, 2)) + RandomInt(450, 600), playerSize, playerSize, Math.PI);
     enemies.push(enemey);
 }
 
@@ -191,7 +350,7 @@ function Image(ref, x, y, w, h, angle)
     this.vX = 0; // Velocity
     this.vY = 0;
 
-    this.targetTime = timer+enemeyFireRate;//specific to enemy
+    this.targetTime = timer+enemeyFireRate; // Specific to Enemy
 
     this.update = function update()
     {
@@ -208,6 +367,8 @@ function Image(ref, x, y, w, h, angle)
 
         ctx.translate(-this.x, -this.y);
     }
+
+    this.copy = function() { return new Image(ref, x, y, w, h, angle) }
 }
 
 function Rect(x, y, w, h, color)
@@ -295,7 +456,9 @@ var retryButton = {
 function EndGame()
 {
     clearInterval(updateLoop);
-    minigun_audio.pause();
+    currentShootSounds[0].pause();
+
+    isGameOver = true;
 
     ctx.fillStyle = 'red';
     ctx.font = "50px Arial";
@@ -325,24 +488,3 @@ function EndGame()
         }
     });
 }
-
-//Function to get the mouse position
-function getMousePos(canvas, event) {
-    var rect = canvas.getBoundingClientRect();
-    return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top
-    };
-}
-//Function to check whether a point is inside a rectangle
-function isInside(pos, rect){
-    return pos.x > rect.x && pos.x < rect.x+rect.width && pos.y < rect.y+rect.height && pos.y > rect.y
-}
-
-canvas.addEventListener('click', function(evt) {
-    var mousePos = getMousePos(canvas, evt);
-
-    if (isInside(mousePos, retryButton)) {
-        window.location.reload(true);
-    }
-}, false);
