@@ -129,7 +129,7 @@ canvas.addEventListener('click', function(evt) {
         ctx.textAlign = "center";
         ctx.font = "40px Arial";
 
-        if(unlockableCharacters[0].hasBought){ ctx.fillText("Currently In Progress!", 300, 400); return;}
+        if(unlockableCharacters[0].hasBought){ ctx.fillText("Currently In Progress!", 300, 585); return;}
         if(money < unlockableCharacters[0].cost){ ctx.fillText("Not Enough Money!", 300, 585); return; }
         
         unlockableCharacters[0].hasBought = true;
