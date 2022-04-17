@@ -1,0 +1,23 @@
+{
+    "name": "Heavy Simulator",
+    "description": "An Epic Shooter To Test Ones Vigor",
+    "version": "0.5.0",
+    "manifest_version": 3,
+
+    "permissions": 
+    [
+        "storage"
+    ],
+
+    "icons":
+    {
+        "16": "imgs/thumbnail.PNG",
+        "48": "imgs/thumbnail.PNG",
+        "128": "imgs/thumbnail.PNG"
+    },
+    
+    "action": 
+    {
+        "default_popup": "game/index.html"
+    }
+  }
