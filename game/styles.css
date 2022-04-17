@@ -1,0 +1,14 @@
+* 
+{
+    margin: 0;
+    padding: 0;
+    width: 600px;
+    height: 600px;
+    box-sizing:border-box;
+    overflow: hidden;
+}
+
+#canvas
+{
+    background-color: black;
+}
